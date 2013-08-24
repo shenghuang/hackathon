@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Module>
+  <ModulePrefs title="IATI DFATD Data" scrolling="true" width="200" height="250" author="Sheng Huang" author_email="shenghuang.cida@google.com">
+	<Locale lang="all">
+	  <msg name="iati_dfatd">IATI DFATD Data</msg> 
+	  <msg name="iati_field">IATI Field</msg> 
+  	  <msg name="iati_keyword">Search Keyword</msg> 
+  	  <msg name="language">en</msg> 
+	</Locale>
+	<Locale lang="en">
+	  <msg name="iati_dfatd">IATI DFATD Data</msg> 
+	  <msg name="iati_field">IATI Field</msg> 
+  	  <msg name="iati_keyword">Search Keyword</msg> 
+  	  <msg name="language">en</msg> 
+	</Locale>
+	<Locale lang="fr">
+	  <msg name="iati_dfatd">Data de IATI MAECD</msg> 	
+  	  <msg name="iati_field">IATI champ</msg> 
+  	  <msg name="iati_keyword">Recherche par mot clé</msg> 
+      <msg name="language">fr</msg> 
+	</Locale>	
+	<Locale lang="fr-ca">
+	  <msg name="iati_dfatd">Data de IATI MAECD</msg> 	
+  	  <msg name="iati_field">IATI champ</msg> 
+  	  <msg name="iati_keyword">Recherche par mot clé</msg> 
+      <msg name="language">fr</msg> 
+	</Locale>
+  </ModulePrefs>
+  <UserPref 
+    name="myfield" 
+    display_name="__MSG_iati_field__" 
+    default_value="" />
+  <UserPref 
+    name="mykeyword" 
+    display_name="__MSG_iati_keyword__" 
+    default_value="" 
+    required="true" />
+  <Content type="html">
+  <![CDATA[
+    <div id="content_div"></div>
+    <script type="text/javascript">
+      // get prefs
+      var prefs = new gadgets.Prefs();
+      // Field set by user
+      var myField = prefs.getString("myfield");
+      // Keyword set by user    
+      var myKeyword = prefs.getString("mykeyword");
+
+      function makeDOMRequest() {    
+        var params = {};  
+        params[gadgets.io.RequestParameters.CONTENT_TYPE] = gadgets.io.ContentType.DOM;  
+        var url = "http://www.acdi-cida.gc.ca/iita-iati/dfatd-maecd_activites-activities.xml";  
+        gadgets.io.makeRequest(url, response, params, 3000);
+      };
+      
+      function response(obj) { 
+        // Start building HTML string that will be displayed in <div>.           
+        // Set the style for the <div>.        
+        var html = "<div style='padding: 5px;background-color: #ccf;font-family:Arial, Helvetica;" 
+          + "text-align:left;font-size:90%'>";   
+        // Set style for title.
+        html +="<div style='text-align:center; font-size: 120%; color: yellow; " 
+          + "font-weight: 700;'>"; 
+        // obj.data contains a Document DOM element corresponding to the
+        // page that was requested
+        var domdata = obj.data;
+
+        // Display menu title. Use getElementsByTagName() to retrieve the <menu> element.
+        // Since there is only one menu element in the file,
+        // you can get to it by accessing the item at index "0". 
+        // You can then use getAttribute to get the text associated with the
+        // menu "title" attribute.
+        var title = prefs.getMsg("iati_dfatd") + domdata.getElementsByTagName("iati-activities").item(0).getAttribute("version");
+        html += title + "</div><br>"; 
+        // Get a list of the <food> element nodes in the file
+        var itemList = domdata.getElementsByTagName("iati-activity");
+ 
+        // Loop through all <iati-activity> nodes (allow two level recursive search for grandchildrens)
+        for (var i = 0; i < itemList.length ; i++) { 
+        	// For each <iati-activity> node, get child nodes.
+       		var found = false;
+        	var activityNode = itemList.item(i);
+        	var nodeList = itemList.item(i).childNodes;
+
+        	// Loop through child nodes. Extract data from the text nodes that are
+        	// the children of the associated text and schema field element nodes.
+        	for (var j = 0; j < nodeList.length ; j++) {
+          		var node = nodeList.item(j);
+          		
+          		var nodeName = node.nodeName;
+          		var nodeValue = "";
+          		if (node.firstChild != null) {
+          			nodeValue = node.firstChild.nodeValue;
+          		}
+          		
+          		if (nodeName == "iati-identifier") {
+            		var identifier = nodeValue; 
+          		}
+          		if (nodeName == "title") {
+          			if (node.getAttribute("xml:lang") == prefs.getMsg("language")) {
+	            		var title = nodeValue;
+	            	} 
+          		}
+          		if (nodeName == "description") {
+          			if (node.getAttribute("xml:lang") == prefs.getMsg("language")) {
+ 		           		var description = nodeValue; 
+ 		           	}
+          		}
+          		
+          		if (myField == "" && myKeyword == "") {
+          			found = true;
+          		} else if (myField != "" && myKeyword != "") {
+          			if (nodeValue != null) {
+          				if ((nodeName == myField && nodeValue.indexOf(myKeyword) != -1) || (myField == "iati-identifier" && identifier == myKeyword)) {
+	          				found = true;
+	          			} 
+          			} else {
+          				var childNodeList = node.childNodes;
+          				if (childNodeList.length > 1) {
+				        	for (var k = 0; k < childNodeList.length ; k++) {
+				          		var childNode = childNodeList.item(k);
+					          		
+				          		var childNodeName = childNode.nodeName;
+				          		var childNodeValue = "";
+				          		if (childNode.firstChild != null) {
+				          			childNodeValue = childNode.firstChild.nodeValue;
+				          		}
+		          				if (childNodeName == myField && childNodeValue.indexOf(myKeyword) != -1) {
+        			  				found = true;
+        						}
+        					}  				
+          				}
+          			}
+	      		}
+       		 }
+       		 
+       		 if (found) {
+		       	// Append extracted data to the HTML string.
+		       	if(typeof(title) == 'undefined' || title == null) {
+		       		title = "";
+		       	}
+		       	if(typeof(description) == 'undefined' || description == null) {
+		       		description = "";
+		       	}		       	
+		       	html += "<i><b>";
+		       	html += "<a href=\"http://www.acdi-cida.gc.ca/cidaweb/cpo.nsf/vWebProjByNumEn?OpenView&id="+identifier+"\" target=\"_blank\">"+identifier + "</a> - " + title;
+		       	html += "</b></i><br>";
+		       	html += "&emsp;"; 
+		       	html += description;
+		       	html += "<br>";
+			}
+		}
+      // Close up div
+      html += "</div>";
+      document.getElementById('content_div').innerHTML = html;
+    };
+    gadgets.util.registerOnLoadHandler(makeDOMRequest);
+    </script>
+  ]]>
+  </Content>
+</Module>​
